@@ -1,0 +1,7 @@
+pytest
+pytest-asyncio
+pytest-mock
+coverage
+requests
+cryptography
+-e git+https://github.com/WIPACrepo/rest-tools#egg=rest_tools
