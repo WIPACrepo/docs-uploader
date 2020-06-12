@@ -95,7 +95,8 @@ def extract(path, data):
 def rebuild_index(path):
     paths = {}
     for meta in os.listdir(path):
-        paths[meta] = os.listdir(os.path.join(path,meta))
+        if os.path.isdir(os.path.join(path,meta)):
+            paths[meta] = os.listdir(os.path.join(path,meta))
     with open(os.path.join(path,'index.html'),'w') as f:
         print('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Docs</title><meta name="description" content="IceCube Documentation Repository"></head><body><h1>Docs</h1>', file=f)
         for meta in paths:
@@ -146,6 +147,7 @@ class UploadHandler(BaseHandler):
             await asyncio.get_event_loop().run_in_executor(None,
                 partial(extract, os.path.join(self.docs_path, self.path), data))
         except Exception as e:
+            logging.info('error extracting docs', exc_info=True)
             return self.send_error(400, reason=f'cannot extract docs: {e}')
 
         # update index
@@ -153,6 +155,7 @@ class UploadHandler(BaseHandler):
             await asyncio.get_event_loop().run_in_executor(None,
                 partial(rebuild_index, self.docs_path))
         except Exception as e:
+            logging.info('error updating index', exc_info=True)
             return self.send_error(400, reason=f'cannot update index: {e}')
 
         self.render('upload', success=True)
