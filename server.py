@@ -90,6 +90,19 @@ def extract(path, data):
     for name in filenames:
         tf.extract(name, path=path, set_attrs=False)
 
+def rebuild_index(path):
+    paths = {}
+    for meta in os.listdir(path):
+        paths[meta] = os.listdir(os.path.join(path,meta))
+    with open(os.path.join(path,'index.html'),'w') as f:
+        print('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Docs</title><meta name="description" content="IceCube Documentation Repository"></head><body><h1>Docs</h1>', file=f)
+        for meta in paths:
+            print('<h3>'+meta+'</h3><ul>', file=f)
+            for version in sorted(paths[meta], reverse=True):
+                print(f'<li><a href="{meta}/{version}">{version}</a></li>', file=f)
+            print('</ul>', file=f)
+        print('</body></html>', file=f)
+
 class UploadHandler(BaseHandler):
     def initialize(self, **kwargs):
         super().initialize(**kwargs)
@@ -132,6 +145,13 @@ class UploadHandler(BaseHandler):
                 partial(extract, os.path.join(self.docs_path, self.path), data))
         except Exception as e:
             return self.send_error(400, reason=f'cannot extract docs: {e}')
+
+        # update index
+        try:
+            await asyncio.get_event_loop().run_in_executor(None,
+                partial(rebuild_index, self.docs_path))
+        except Exception as e:
+            return self.send_error(400, reason=f'cannot update index: {e}')
 
         self.render('upload', success=True)
 
