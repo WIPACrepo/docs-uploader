@@ -99,7 +99,7 @@ def rebuild_index(path):
             paths[meta] = os.listdir(os.path.join(path,meta))
     with open(os.path.join(path,'index.html'),'w') as f:
         print('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Docs</title><meta name="description" content="IceCube Documentation Repository"></head><body><h1>Docs</h1>', file=f)
-        for meta in paths:
+        for meta in sorted(paths):
             print('<h3>'+meta+'</h3><ul>', file=f)
             for version in sorted(paths[meta], reverse=True):
                 print(f'<li><a href="{meta}/{version}">{version}</a></li>', file=f)
