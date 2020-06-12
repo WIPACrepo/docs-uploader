@@ -3,6 +3,7 @@ Server for docs uploading
 """
 
 import os
+import shutil
 import logging
 import asyncio
 import base64
@@ -85,8 +86,9 @@ def extract(path, data):
         raise Exception('filename contains ..')
     if any(n[0] == '/' for n in filenames):
         raise Exception('filename starts with /')
-    if not os.path.exists(path):
-        os.makedirs(path)
+    if os.path.exists(path):
+        shutil.rmtree(path)
+    os.makedirs(path)
     for name in filenames:
         tf.extract(name, path=path, set_attrs=False)
 
