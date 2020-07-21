@@ -11,6 +11,7 @@ from functools import wraps, partial
 import random
 from io import BytesIO
 import tarfile
+import shutil
 
 from tornado.web import RequestHandler, HTTPError, MissingArgumentError
 from tornado.template import DictLoader
@@ -226,7 +227,7 @@ class UploadAPIHandler(BaseHandler):
         if not data:
             return self.send_error(400, reason='missing file')
 
-        logging.info(f'path={self.path}')
+        logging.info(f'upload path={self.path}')
 
         # extract data
         try:
@@ -244,7 +245,33 @@ class UploadAPIHandler(BaseHandler):
             logging.info('error updating index', exc_info=True)
             return self.send_error(400, reason=f'cannot update index: {e}')
 
-        self.write(204)
+        self.set_status(204)
+
+    @authenticated
+    async def delete(self):
+        self.path = self.get_argument('path', None)
+        if not self.path:
+            return self.send_error(400, reason='missing path')
+
+        logging.info(f'delete path={self.path}')
+
+        # delete path
+        try:
+            await asyncio.get_event_loop().run_in_executor(None,
+                partial(shutil.rmtree, os.path.join(self.docs_path, self.path)))
+        except Exception as e:
+            logging.info('error deleting docs', exc_info=True)
+            return self.send_error(400, reason=f'cannot delete docs: {e}')        
+
+        # update index
+        try:
+            await asyncio.get_event_loop().run_in_executor(None,
+                partial(rebuild_index, self.docs_path))
+        except Exception as e:
+            logging.info('error updating index', exc_info=True)
+            return self.send_error(400, reason=f'cannot update index: {e}')
+
+        self.set_status(204)
 
 
 def create_server(config):
