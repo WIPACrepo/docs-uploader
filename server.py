@@ -12,6 +12,7 @@ import random
 from io import BytesIO
 import tarfile
 import shutil
+import stat
 
 from tornado.web import RequestHandler, HTTPError, MissingArgumentError
 from tornado.template import DictLoader
@@ -91,8 +92,10 @@ def extract(path, data):
     if os.path.exists(path):
         shutil.rmtree(path)
     os.makedirs(path)
+    mode = stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IWGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH
     for name in filenames:
         tf.extract(name, path=path, set_attrs=False)
+        os.chmod(os.path.join(path,name), mode)
 
 def rebuild_index(path):
     paths = {}
