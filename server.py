@@ -14,6 +14,7 @@ import tarfile
 
 from tornado.web import RequestHandler, HTTPError, MissingArgumentError
 from tornado.template import DictLoader
+from tornado.escape import json_decode
 from rest_tools.server import RestServer, from_environment
 
 
@@ -199,6 +200,53 @@ templates = DictLoader({
     'upload': upload_template,
 })
 
+
+class UploadAPIHandler(BaseHandler):
+    def initialize(self, **kwargs):
+        super().initialize(**kwargs)
+        self.path = ''
+
+    def check_xsrf_cookie(self):
+        pass
+
+    def write_error(self, status_code: 500, **kwargs):
+        error = 'unknown error'
+        if 'reason' in kwargs:
+            error = kwargs['reason']
+        self.set_status(status_code)
+        self.write({'error': error})
+
+    @authenticated
+    async def put(self):
+        self.path = self.get_argument('path', None)
+        if not self.path:
+            return self.send_error(400, reason='missing path')
+
+        data = self.request.body
+        if not data:
+            return self.send_error(400, reason='missing file')
+
+        logging.info(f'path={self.path}')
+
+        # extract data
+        try:
+            await asyncio.get_event_loop().run_in_executor(None,
+                partial(extract, os.path.join(self.docs_path, self.path), data))
+        except Exception as e:
+            logging.info('error extracting docs', exc_info=True)
+            return self.send_error(400, reason=f'cannot extract docs: {e}')
+
+        # update index
+        try:
+            await asyncio.get_event_loop().run_in_executor(None,
+                partial(rebuild_index, self.docs_path))
+        except Exception as e:
+            logging.info('error updating index', exc_info=True)
+            return self.send_error(400, reason=f'cannot update index: {e}')
+
+        self.write(204)
+
+
 def create_server(config):
     static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),'static')
 
@@ -212,6 +260,7 @@ def create_server(config):
     server = RestServer(static_path=static_path, debug=config['DEBUG'],
             template_loader=templates, xsrf_cookies=True, cookie_secret=config['COOKIE_SECRET'])
     server.add_route('/upload', UploadHandler, kwargs)
+    server.add_route('/api/upload', UploadAPIHandler, kwargs)
     server.startup(address=config['HOST'], port=config['PORT'])
 
     return server
